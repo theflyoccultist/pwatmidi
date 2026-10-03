@@ -13,3 +13,10 @@ A small terminal based sketchpad to play and record MIDI, without requiring to o
 
 - PipeWire
 - ncurses
+
+#### Building:
+
+```bash
+meson setup builddir
+meson compile -C builddir
+```
