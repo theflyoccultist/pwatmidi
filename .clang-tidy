@@ -1,0 +1,9 @@
+Checks: >
+  bugprone-*,
+  performance-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-pro-type-const-cast,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  modernize-*,
+  -modernize-use-trailing-return-type,

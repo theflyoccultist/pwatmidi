@@ -1,0 +1,12 @@
+---
+BasedOnStyle: LLVM
+IndentWidth: 4
+---
+Language: Cpp
+BasedOnStyle: LLVM
+IndentWidth: 4
+AlignAfterOpenBracket: Align
+ColumnLimit: 100
+IndentRequiresClause: false
+SortIncludes: false
+---
