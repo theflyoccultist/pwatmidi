@@ -1,10 +1,12 @@
 #include "AudioEngine.hpp"
+#include "AudioState.hpp"
 
 constexpr double M_PI_M2(M_PI + M_PI);
 
 constexpr int DEFAULT_RATE = 44100;
 constexpr int DEFAULT_CHANNELS = 2;
-constexpr double DEFAULT_VOLUME = 0.7;
+
+const AudioState state;
 
 const struct pw_stream_events AudioEngine::stream_events = {
     .version = PW_VERSION_STREAM_EVENTS,
@@ -71,10 +73,8 @@ void AudioEngine::on_process(void *userdata) {
     if (b->requested)
         n_frames = SPA_MIN(b->requested, n_frames);
 
-    const double hertz = 440.0;
-
     for (i = 0; i < n_frames; i++) {
-        s_instance->accumulator_ += M_PI_M2 * hertz / DEFAULT_RATE;
+        s_instance->accumulator_ += M_PI_M2 * state.freq / DEFAULT_RATE;
         if (s_instance->accumulator_ >= M_PI_M2)
             s_instance->accumulator_ -= M_PI_M2;
 
@@ -85,7 +85,7 @@ void AudioEngine::on_process(void *userdata) {
          * 16 bits is to multiple by 32768.0 and then clamp to
          * [-32768 32767] to get the full 16 bits range. */
         const uint16_t scale = 32767.0;
-        val = static_cast<int16_t>(sin(s_instance->accumulator_) * DEFAULT_VOLUME * scale);
+        val = static_cast<int16_t>(sin(s_instance->accumulator_) * state.vol * scale);
         for (c = 0; c < DEFAULT_CHANNELS; c++)
             *dst++ = val;
     }
