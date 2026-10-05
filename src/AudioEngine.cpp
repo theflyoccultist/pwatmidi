@@ -1,5 +1,7 @@
 #include "AudioEngine.hpp"
 #include <atomic>
+#include <cstddef>
+#include <cstring>
 
 constexpr double M_PI_M2(M_PI + M_PI);
 
@@ -76,8 +78,11 @@ void AudioEngine::on_process(void *userdata) {
         n_frames = SPA_MIN(b->requested, n_frames);
 
     bool muted = s_instance->state_.is_muted.load(std::memory_order_relaxed);
-    float vol = s_instance->state_.vol.load(std::memory_order_relaxed);
+    float raw_vol = s_instance->state_.vol.load(std::memory_order_relaxed);
     float freq = s_instance->state_.freq.load(std::memory_order_relaxed);
+
+    float vol = muted ? 0.0f : raw_vol;
+    const float scale = 32767.0;
 
     for (uint32_t i = 0; i < n_frames; i++) {
         s_instance->accumulator_ += M_PI_M2 * freq / DEFAULT_RATE;
@@ -90,8 +95,8 @@ void AudioEngine::on_process(void *userdata) {
          * Another common method to convert a double to
          * 16 bits is to multiple by 32768.0 and then clamp to
          * [-32768 32767] to get the full 16 bits range. */
-        const uint16_t scale = 32767.0;
         val = static_cast<int16_t>(sin(s_instance->accumulator_) * vol * scale);
+
         for (c = 0; c < DEFAULT_CHANNELS; c++)
             *dst++ = val;
     }
