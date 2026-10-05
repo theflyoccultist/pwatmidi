@@ -1,50 +1,82 @@
 #include "UI.hpp"
+#include <algorithm>
+#include <atomic>
 #include <ncurses.h>
-#include <string>
 
 UI::UI() {
     initscr();            /* initialize the curses library */
-    keypad(stdscr, TRUE); /* enable keyboard mapping */
-    nonl();               /* tell curses not to do NL->CR/NL on output */
     cbreak();             /* take input chars one at a time, no wait for \n */
-    echo();               /* echo input - in color */
+    noecho();             /* no echo input */
+    keypad(stdscr, TRUE); /* enable keyboard mapping */
+    curs_set(0);
 
-    if (has_colors()) {
-        start_color();
+    timeout(33);
+}
 
-        /*
-         * Simple color assignment, often all we need.  Color pair 0 cannot
-         * be redefined.  This example uses the same value for the color
-         * pair as for the foreground color, though of course that is not
-         * necessary:
-         */
-        init_pair(1, COLOR_RED, COLOR_BLACK);
-        init_pair(2, COLOR_GREEN, COLOR_BLACK);
-        init_pair(3, COLOR_YELLOW, COLOR_BLACK);
-        init_pair(4, COLOR_BLUE, COLOR_BLACK);
-        init_pair(5, COLOR_CYAN, COLOR_BLACK);
-        init_pair(6, COLOR_MAGENTA, COLOR_BLACK);
-        init_pair(7, COLOR_WHITE, COLOR_BLACK);
+void UI::run(AudioState &state) {
+    bool running = true;
+    while (running) {
+        int ch = getch();
+        switch (ch) {
+        case 'q':
+        case 'Q':
+            running = false;
+            break;
+
+        case 'm':
+        case 'M': {
+            // Toggle mute
+            bool current = state.is_muted.load(std::memory_order_relaxed);
+            state.is_muted.store(!current, std::memory_order_relaxed);
+            break;
+        }
+
+        case KEY_UP: {
+            // Increase volume (clamp to 1.0)
+            float v = state.vol.load(std::memory_order_relaxed);
+            state.vol.store(std::min(1.0f, v + 0.05f), std::memory_order_relaxed);
+            break;
+        }
+
+        case KEY_DOWN: {
+            // Decrease volume (clamp to 0.0)
+            float v = state.vol.load(std::memory_order_relaxed);
+            state.vol.store(std::max(0.0f, v - 0.05f), std::memory_order_relaxed);
+            break;
+        }
+
+        case KEY_RIGHT: {
+            // Step freqency up
+            float f = state.freq.load(std::memory_order_relaxed);
+            state.freq.store(std::min(20000.0f, f + 20.0f), std::memory_order_relaxed);
+            break;
+        }
+
+        case KEY_LEFT: {
+            // Step freqency up
+            float f = state.freq.load(std::memory_order_relaxed);
+            state.freq.store(std::max(20.0f, f - 10.0f), std::memory_order_relaxed);
+            break;
+        }
+
+        case ERR:
+            break;
+
+        default:
+            break;
+        }
+        // Render your ncurses interface here...
+        erase();
+        mvprintw(1, 2, "=== PipeWire Controller ===");
+        mvprintw(3, 2, "Volume:    [%.2f]", state.vol.load());
+        mvprintw(4, 2, "Frequency: [%.1f Hz]", state.freq.load());
+        mvprintw(5, 2, "Muted:     [%s]", state.is_muted.load() ? "YES" : "NO");
+        mvprintw(7, 2, "Controls: Up/Down (Vol), Left/Right (Freq), M (Mute), Q (Quit)");
+        refresh();
     }
 }
 
-void UI::run() {
-    std::string mesg = "Enter a string: "; /* message to be appeared on the screen */
-    std::string str{};
-    int row{}, col{};           /* to store the number of rows and *
-                                 * the number of colums of the screen */
-    initscr();                  /* start the curses mode */
-    getmaxyx(stdscr, row, col); /* get the number of rows and columns */
-    mvprintw(row / 2, (int)(col - mesg.length()) / 2, "%s", mesg.c_str());
-    /* print the message at the center of the screen */
-    getstr(str.data());
-    mvprintw(LINES - 2, 0, "You Entered: %s", str.c_str());
-    getch();
-
-    /* process the command keystroke */
-}
-
-UI::~UI() { finish(0); /* we're done */ }
+UI::~UI() { finish(0); }
 
 void UI::finish(int sig) {
     endwin();
