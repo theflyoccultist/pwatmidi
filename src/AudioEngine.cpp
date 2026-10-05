@@ -1,4 +1,5 @@
 #include "AudioEngine.hpp"
+#include <atomic>
 
 constexpr double M_PI_M2(M_PI + M_PI);
 
@@ -10,13 +11,14 @@ const struct pw_stream_events AudioEngine::stream_events = {
     .process = on_process,
 };
 
-AudioEngine::AudioEngine()
+AudioEngine::AudioEngine(AudioState &state)
     : loop_(pw_main_loop_new(nullptr)),
       stream_(
           pw_stream_new_simple(pw_main_loop_get_loop(loop_), "audio-src",
                                pw_properties_new(PW_KEY_MEDIA_TYPE, "Audio", PW_KEY_MEDIA_CATEGORY,
                                                  "Playback", PW_KEY_MEDIA_ROLE, "Music", nullptr),
-                               &stream_events, this)) {
+                               &stream_events, this)),
+      state_(state) {
 
     auto info = SPA_AUDIO_INFO_RAW_INIT(.format = SPA_AUDIO_FORMAT_S16, .rate = DEFAULT_RATE,
                                         .channels = DEFAULT_CHANNELS);
@@ -47,9 +49,12 @@ AudioEngine *AudioEngine::s_instance = nullptr;
 /* [on_process] */
 void AudioEngine::on_process(void *userdata) {
     s_instance = static_cast<AudioEngine *>(userdata);
+    if (!s_instance)
+        return;
+
     struct pw_buffer *b{};
     struct spa_buffer *buf{};
-    int i{}, c{};
+    int c{};
     uint32_t n_frames{};
     int32_t stride{};
     int16_t *dst{}, val{};
@@ -70,8 +75,12 @@ void AudioEngine::on_process(void *userdata) {
     if (b->requested)
         n_frames = SPA_MIN(b->requested, n_frames);
 
-    for (i = 0; i < n_frames; i++) {
-        s_instance->accumulator_ += M_PI_M2 * 440.0 / DEFAULT_RATE;
+    bool muted = s_instance->state_.is_muted.load(std::memory_order_relaxed);
+    float vol = s_instance->state_.vol.load(std::memory_order_relaxed);
+    float freq = s_instance->state_.freq.load(std::memory_order_relaxed);
+
+    for (uint32_t i = 0; i < n_frames; i++) {
+        s_instance->accumulator_ += M_PI_M2 * freq / DEFAULT_RATE;
         if (s_instance->accumulator_ >= M_PI_M2)
             s_instance->accumulator_ -= M_PI_M2;
 
@@ -82,7 +91,7 @@ void AudioEngine::on_process(void *userdata) {
          * 16 bits is to multiple by 32768.0 and then clamp to
          * [-32768 32767] to get the full 16 bits range. */
         const uint16_t scale = 32767.0;
-        val = static_cast<int16_t>(sin(s_instance->accumulator_) * 0.8 * scale);
+        val = static_cast<int16_t>(sin(s_instance->accumulator_) * vol * scale);
         for (c = 0; c < DEFAULT_CHANNELS; c++)
             *dst++ = val;
     }

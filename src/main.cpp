@@ -1,18 +1,19 @@
 #include "AudioEngine.hpp"
 #include "UI.hpp"
+#include <functional>
 #include <thread>
 
-void run() {
-    UI ui;
-    AudioState state = {.freq = 440.0f, .is_muted = false, .vol = 0.8f};
-    ui.run(state);
+void runUI(AudioState &shared_state) {
+    UI ui(shared_state);
+    ui.run();
 }
 
 int main(int argc, char *argv[]) {
     pw_init(&argc, &argv);
 
-    AudioEngine audio;
-    std::jthread uiThread(run);
+    AudioState shared_state;
+    AudioEngine audio(shared_state);
+    std::jthread uiThread(runUI, std::ref(shared_state));
 
     audio.run();
 

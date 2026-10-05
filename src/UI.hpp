@@ -1,27 +1,21 @@
 #include <cstdlib>
 #include <ncurses.h>
-#include <atomic>
-
-struct AudioState {
-    std::atomic<float> freq;
-    std::atomic<bool> is_muted;
-    std::atomic<float> vol;
-};
+#include "AudioEngine.hpp"
 
 class UI {
   public:
-    UI();
+    explicit UI(AudioState &state);
     UI(UI &&) = delete;
     UI(const UI &) = delete;
     UI &operator=(UI &&) = delete;
     UI &operator=(const UI &) = delete;
 
-    void run(AudioState &state);
+    void run();
     static void finish(int sig);
 
     ~UI();
 
   private:
     int num{};
-    AudioState state;
+    AudioState &state_;
 };
