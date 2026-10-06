@@ -1,7 +1,5 @@
 #include "AudioEngine.hpp"
 #include <atomic>
-#include <cstddef>
-#include <cstring>
 
 constexpr double M_PI_M2(M_PI + M_PI);
 

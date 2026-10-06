@@ -1,7 +1,10 @@
 #include "UI.hpp"
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <ncurses.h>
+#include <string>
+#include <vector>
 
 UI::UI(AudioState &state) : state_(state) {
     initscr();            /* initialize the curses library */
@@ -15,19 +18,41 @@ UI::UI(AudioState &state) : state_(state) {
 
 void UI::run() {
     bool running = true;
+
+    constexpr int BASE_OCTAVE = 4;
+    int target_octave = 5;
+
+    const std::vector<std::string> base_notes = {
+        "none", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+    };
+
+    const std::vector<float> base_freqs = {
+        261.63f, 277.18f, 293.66f, 311.13f, 329.63f, 349.23f,
+        369.99f, 392.0f,  415.3f,  440.0f,  466.16f, 493.88f,
+    };
+
+    size_t key = 0;
     while (running) {
         int ch = getch();
-        switch (ch) {
-        case 'q':
-        case 'Q':
-            running = false;
-            break;
 
-        case 'm':
-        case 'M': {
+        switch (ch) {
+        case KEY_F(3): {
             // Toggle mute
             bool current = state_.is_muted.load(std::memory_order_relaxed);
             state_.is_muted.store(!current, std::memory_order_relaxed);
+            break;
+        }
+
+        case KEY_F(4):
+            running = false;
+            break;
+
+        case 'a' ... 'z':
+        case 'A' ... 'Z': {
+            key = (ch % 12);
+            int octave_shift = target_octave - BASE_OCTAVE;
+            state_.freq.store(base_freqs[key] * std::pow(2.0f, octave_shift),
+                              std::memory_order_relaxed);
             break;
         }
 
@@ -46,16 +71,14 @@ void UI::run() {
         }
 
         case KEY_RIGHT: {
-            // Step freqency up
-            float f = state_.freq.load(std::memory_order_relaxed);
-            state_.freq.store(std::min(20000.0f, f + 20.0f), std::memory_order_relaxed);
+            // +1 octave
+            target_octave++;
             break;
         }
 
         case KEY_LEFT: {
-            // Step freqency up
-            float f = state_.freq.load(std::memory_order_relaxed);
-            state_.freq.store(std::max(20.0f, f - 10.0f), std::memory_order_relaxed);
+            // -1 octave
+            target_octave--;
             break;
         }
 
@@ -65,13 +88,15 @@ void UI::run() {
         default:
             break;
         }
+
         // Render your ncurses interface here...
         erase();
         mvprintw(1, 2, "=== PipeWire Controller ===");
         mvprintw(3, 2, "Volume:    [%.2f]", state_.vol.load());
         mvprintw(4, 2, "Frequency: [%.1f Hz]", state_.freq.load());
         mvprintw(5, 2, "Muted:     [%s]", state_.is_muted.load() ? "YES" : "NO");
-        mvprintw(7, 2, "Controls: Up/Down (Vol), Left/Right (Freq), M (Mute), Q (Quit)");
+        mvprintw(7, 2, "Controls: Up/Down (Vol), Left/Right (-/+ Octave), F3 (Mute), F4 (Quit)");
+        mvprintw(9, 2, "Current Note: [%s%d]", base_notes[key + 1].c_str(), target_octave);
         refresh();
     }
 }
