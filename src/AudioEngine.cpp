@@ -1,11 +1,6 @@
 #include "AudioEngine.hpp"
 #include <atomic>
 
-constexpr double M_PI_M2(M_PI + M_PI);
-
-constexpr int DEFAULT_RATE = 44100;
-constexpr int DEFAULT_CHANNELS = 2;
-
 const struct pw_stream_events AudioEngine::stream_events = {
     .version = PW_VERSION_STREAM_EVENTS,
     .process = on_process,
@@ -78,6 +73,7 @@ void AudioEngine::on_process(void *userdata) {
     bool muted = s_instance->state_.is_muted.load(std::memory_order_relaxed);
     float raw_vol = s_instance->state_.vol.load(std::memory_order_relaxed);
     float freq = s_instance->state_.freq.load(std::memory_order_relaxed);
+    uint32_t remaining = s_instance->state_.samples_remaining.load(std::memory_order_relaxed);
 
     float vol = muted ? 0.0f : raw_vol;
     const float scale = 32767.0;

@@ -8,10 +8,19 @@
 
 #include <pipewire/pipewire.h>
 
+constexpr double M_PI_M2(M_PI + M_PI);
+
+constexpr int DEFAULT_RATE = 44100;
+constexpr int DEFAULT_CHANNELS = 2;
+
+constexpr float NOTE_DURATION_SEC = 0.5f;
+constexpr uint32_t DURATION_SAMPLES = static_cast<uint32_t>(DEFAULT_RATE * NOTE_DURATION_SEC);
+
 struct AudioState {
-    std::atomic<float> freq{440.0f};
-    std::atomic<bool> is_muted{false};
+    std::atomic<float> freq{523.3f};
+    std::atomic<bool> is_muted{true};
     std::atomic<float> vol{0.8f};
+    std::atomic<uint32_t> samples_remaining{0};
 };
 
 class AudioEngine {

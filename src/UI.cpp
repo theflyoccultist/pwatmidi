@@ -23,7 +23,7 @@ void UI::run() {
     int target_octave = 5;
 
     const std::vector<std::string> base_notes = {
-        "none", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
     };
 
     const std::vector<float> base_freqs = {
@@ -34,11 +34,11 @@ void UI::run() {
     size_t key = 0;
     while (running) {
         int ch = getch();
+        bool current = state_.is_muted.load(std::memory_order_relaxed);
 
         switch (ch) {
         case KEY_F(3): {
             // Toggle mute
-            bool current = state_.is_muted.load(std::memory_order_relaxed);
             state_.is_muted.store(!current, std::memory_order_relaxed);
             break;
         }
@@ -49,10 +49,13 @@ void UI::run() {
 
         case 'a' ... 'z':
         case 'A' ... 'Z': {
+
             key = (ch % 12);
             int octave_shift = target_octave - BASE_OCTAVE;
             state_.freq.store(base_freqs[key] * std::pow(2.0f, octave_shift),
                               std::memory_order_relaxed);
+            state_.samples_remaining.store(DURATION_SAMPLES, std::memory_order_relaxed);
+            state_.is_muted.store(false, std::memory_order_relaxed);
             break;
         }
 
@@ -96,7 +99,7 @@ void UI::run() {
         mvprintw(4, 2, "Frequency: [%.1f Hz]", state_.freq.load());
         mvprintw(5, 2, "Muted:     [%s]", state_.is_muted.load() ? "YES" : "NO");
         mvprintw(7, 2, "Controls: Up/Down (Vol), Left/Right (-/+ Octave), F3 (Mute), F4 (Quit)");
-        mvprintw(9, 2, "Current Note: [%s%d]", base_notes[key + 1].c_str(), target_octave);
+        mvprintw(9, 2, "Current Note: [%s%d]", base_notes[key].c_str(), target_octave);
         refresh();
     }
 }
