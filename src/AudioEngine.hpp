@@ -2,7 +2,6 @@
 
 #include <array>
 #include <atomic>
-#include "AudioState.hpp"
 
 #include <spa/param/audio/format-utils.h>
 

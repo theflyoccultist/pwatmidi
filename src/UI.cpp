@@ -3,8 +3,8 @@
 #include <atomic>
 #include <cmath>
 #include <ncurses.h>
-#include <string>
 #include <vector>
+#include "Scale.hpp"
 
 UI::UI(AudioState &state) : state_(state) {
     initscr();            /* initialize the curses library */
@@ -22,14 +22,10 @@ void UI::run() {
     constexpr int BASE_OCTAVE = 4;
     int target_octave = 5;
 
-    const std::vector<std::string> base_notes = {
-        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-    };
-
-    const std::vector<float> base_freqs = {
-        261.63f, 277.18f, 293.66f, 311.13f, 329.63f, 349.23f,
-        369.99f, 392.0f,  415.3f,  440.0f,  466.16f, 493.88f,
-    };
+    SCALE scale = SCALE::MAJOR;
+    std::vector<size_t> current_scale = scales.at(scale);
+    size_t num_of_notes_in_octave = current_scale.size();
+    size_t transpose = 0;
 
     size_t key = 0;
     bool muted = false;
@@ -37,6 +33,7 @@ void UI::run() {
         int ch = getch();
 
         switch (ch) {
+
         case KEY_F(3): {
             // Toggle mute
             muted = !muted;
@@ -47,12 +44,30 @@ void UI::run() {
             running = false;
             break;
 
+        case KEY_F(5): {
+            // Switch scale
+            ++scale;
+            current_scale = scales.at(scale);
+            num_of_notes_in_octave = current_scale.size();
+            break;
+        }
+
+        case KEY_F(6): {
+            // Transpose
+            std::ranges::for_each(current_scale, [](size_t &s) {
+                s++;
+                s = s % 12;
+            });
+            break;
+        }
+
         case 'a' ... 'z':
         case 'A' ... 'Z': {
             if (!muted) {
-                key = (ch % 12);
+                key = (ch % num_of_notes_in_octave);
                 int octave_shift = target_octave - BASE_OCTAVE;
-                state_.freq.store(base_freqs[key] * std::pow(2.0f, octave_shift),
+                state_.freq.store((base_freqs[current_scale[key]] + transpose) *
+                                      std::pow(2.0f, octave_shift),
                                   std::memory_order_relaxed);
                 state_.samples_remaining.store(DURATION_SAMPLES, std::memory_order_relaxed);
                 state_.is_muted.store(false, std::memory_order_relaxed);
@@ -99,9 +114,13 @@ void UI::run() {
         mvprintw(3, 2, "Volume:    [%.2f]", state_.vol.load());
         mvprintw(4, 2, "Frequency: [%.1f Hz]", state_.freq.load());
         mvprintw(5, 2, "Muted:     [%s]", state_.is_muted.load() ? "YES" : "NO");
-        mvprintw(7, 2, "Controls: Up/Down (Vol), Left/Right (-/+ Octave), F3 (Mute), F4 (Quit)");
-        mvprintw(9, 2, "Current Note: [%s%d]", base_notes[key].c_str(), target_octave);
-        mvprintw(11, 2, "Mute Button:     [%s]", muted ? "PRESSED" : "UNPRESSED");
+        mvprintw(7, 2,
+                 "Controls: Up/Down (Vol), Left/Right (-/+ Octave), F2(Switch Scale) F3 (Mute), F4 "
+                 "(Quit)");
+        mvprintw(9, 2, "Current Note: [%s%d]", base_notes[current_scale[key]].c_str(),
+                 target_octave);
+        mvprintw(10, 2, "Scale: [C %s]", display_scale(scale));
+        mvprintw(12, 2, "Mute Button:     [%s]", muted ? "PRESSED" : "UNPRESSED");
         refresh();
     }
 }
