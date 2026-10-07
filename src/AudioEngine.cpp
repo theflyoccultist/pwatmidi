@@ -83,6 +83,12 @@ void AudioEngine::on_process(void *userdata) {
         if (s_instance->accumulator_ >= M_PI_M2)
             s_instance->accumulator_ -= M_PI_M2;
 
+        --remaining;
+        if (remaining == 0) {
+            s_instance->state_.is_muted.store(true, std::memory_order_relaxed);
+            muted = true;
+        }
+
         /* sin() gives a value between -1.0 and 1.0, we first apply
          * the volume and then scale with 32767.0 to get a 16 bits value
          * between [-32767 32767].
@@ -94,6 +100,8 @@ void AudioEngine::on_process(void *userdata) {
         for (c = 0; c < DEFAULT_CHANNELS; c++)
             *dst++ = val;
     }
+
+    s_instance->state_.samples_remaining.store(remaining, std::memory_order_relaxed);
 
     buf->datas[0].chunk->offset = 0;
     buf->datas[0].chunk->stride = stride;
