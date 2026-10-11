@@ -26,7 +26,7 @@ enum class SCALE : uint8_t {
     END
 };
 
-SCALE &operator++(SCALE &s) {
+inline SCALE &operator++(SCALE &s) {
     using IntType = std::underlying_type_t<SCALE>;
     s = static_cast<SCALE>(static_cast<IntType>(s) + 1);
     if (s == SCALE::END)
@@ -35,7 +35,20 @@ SCALE &operator++(SCALE &s) {
     return s;
 }
 
-const char *display_scale(SCALE scale) {
+inline SCALE &operator--(SCALE &s) {
+    using IntType = std::underlying_type_t<SCALE>;
+
+    if (s == SCALE::MAJOR) {
+        s = static_cast<SCALE>(static_cast<IntType>(SCALE::END) - 1);
+    } else {
+        s = static_cast<SCALE>(static_cast<IntType>(s) - 1);
+    }
+
+    return s;
+}
+
+namespace scl {
+inline const char *display_scale(SCALE scale) {
     switch (scale) {
     case SCALE::MAJOR:
         return "MAJOR";
@@ -101,3 +114,5 @@ const std::vector<float> base_freqs = {
     261.63f, 277.18f, 293.66f, 311.13f, 329.63f, 349.23f,
     369.99f, 392.0f,  415.3f,  440.0f,  466.16f, 493.88f,
 };
+
+} // namespace scl

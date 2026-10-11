@@ -1,0 +1,4 @@
+[wrap-git]
+directory = midifile
+url = https://github.com/craigsapp/midifile.git
+method = cmake
