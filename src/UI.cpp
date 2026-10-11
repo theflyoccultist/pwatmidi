@@ -61,7 +61,9 @@ void UI::run() {
             // Transpose -1 semitone
             std::ranges::for_each(current_scale, [](size_t &s) {
                 s--;
-                s = s % 12;
+                if (s == -1) {
+                    s += 12;
+                }
             });
             break;
         }
