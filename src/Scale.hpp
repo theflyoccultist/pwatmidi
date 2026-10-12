@@ -20,9 +20,9 @@ enum class SCALE : uint8_t {
     MAJOR_BLUES,
     MINOR_BLUES,
     WHOLE_TONE,
-    DIMINISHED_WH,
-    DIMINISHED_HW,
-    CHROMATIC,
+    // DIMINISHED_WH,
+    // DIMINISHED_HW,
+    // CHROMATIC,
     END
 };
 
@@ -76,12 +76,12 @@ inline const char *display_scale(SCALE scale) {
         return "MINOR_BLUES";
     case SCALE::WHOLE_TONE:
         return "WHOLE_TONE";
-    case SCALE::DIMINISHED_WH:
-        return "DIMINISHED_WH";
-    case SCALE::DIMINISHED_HW:
-        return "DIMINISHED_HW";
-    case SCALE::CHROMATIC:
-        return "CHROMATIC";
+    // case SCALE::DIMINISHED_WH:
+    //     return "DIMINISHED_WH";
+    // case SCALE::DIMINISHED_HW:
+    //     return "DIMINISHED_HW";
+    // case SCALE::CHROMATIC:
+    //     return "CHROMATIC";
     default:
         return "";
     }
@@ -91,7 +91,7 @@ const std::vector<std::string> base_notes = {
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
 };
 
-const std::unordered_map<SCALE, std::vector<size_t>> scales = {
+const std::unordered_map<SCALE, std::vector<int>> scales = {
     {SCALE::MAJOR, {0, 2, 4, 5, 7, 9, 11}},
     {SCALE::MINOR, {0, 2, 3, 5, 7, 8, 10}},
     {SCALE::HARMONIC_MINOR, {0, 2, 3, 5, 7, 8, 11}},
@@ -100,14 +100,14 @@ const std::unordered_map<SCALE, std::vector<size_t>> scales = {
     {SCALE::MIXOLYDIAN, {0, 2, 4, 5, 7, 9, 10}},
     {SCALE::AEOLIAN, {0, 2, 3, 5, 7, 8, 10}},
     {SCALE::LOCRIAN, {0, 1, 3, 5, 6, 8, 10}},
-    {SCALE::MAJOR_PENTATONIC, {0, 2, 4, 7, 9}},
-    {SCALE::MINOR_PENTATONIC, {0, 3, 5, 7, 10}},
-    {SCALE::MAJOR_BLUES, {0, 2, 3, 4, 7, 9}},
-    {SCALE::MINOR_BLUES, {0, 3, 5, 6, 7, 9}},
-    {SCALE::WHOLE_TONE, {0, 2, 4, 6, 8, 10}},
-    {SCALE::DIMINISHED_WH, {0, 2, 3, 5, 6, 8, 9, 11}},
-    {SCALE::DIMINISHED_HW, {0, 1, 3, 4, 6, 7, 9, 10}},
-    {SCALE::CHROMATIC, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
+    {SCALE::MAJOR_PENTATONIC, {0, 2, 4, 7, 9, 4, 7}},
+    {SCALE::MINOR_PENTATONIC, {0, 3, 5, 7, 10, 5, 7}},
+    {SCALE::MAJOR_BLUES, {0, 2, 3, 4, 7, 9, 3}},
+    {SCALE::MINOR_BLUES, {0, 3, 5, 6, 7, 9, 5}},
+    {SCALE::WHOLE_TONE, {0, 2, 4, 6, 8, 10, 4}},
+    // {SCALE::DIMINISHED_WH, {0, 2, 3, 5, 6, 8, 9, 11}},
+    // {SCALE::DIMINISHED_HW, {0, 1, 3, 4, 6, 7, 9, 10}},
+    // {SCALE::CHROMATIC, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
 };
 
 const std::vector<float> base_freqs = {

@@ -6,7 +6,7 @@ cmake = import('cmake')
 sources = [
   'src/main.cpp',
   'src/AudioEngine.cpp',
-  'src/UI.cpp'
+  'src/UI.cpp',
   ]
 
 opts = cmake.subproject_options()

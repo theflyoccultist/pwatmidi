@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include "Voice.hpp"
 
 #include <spa/param/audio/format-utils.h>
 
@@ -49,4 +50,25 @@ class AudioEngine {
 
     std::array<int16_t, 1024> buffer{};
     struct spa_pod_builder b{};
+};
+
+class SimpleVoice {
+  public:
+    explicit SimpleVoice(AudioState &state);
+
+  private:
+    AudioState &state_;
+
+    float attack_time_sec_ = 0.005f;  // 5ms
+    float release_time_sec_ = 0.020f; // 20ms
+
+    float attack_step_ = 0.0f;
+    float release_step_ = 0.0f;
+
+  public:
+    ENVELOPE env_state_ = ENVELOPE::IDLE;
+    void prepare(float sample_rate);
+    void trigger_note(uint32_t sustain_duration_samples);
+    float process_sample(float raw_oscillator_sample);
+    bool is_active() const { return env_state_ != ENVELOPE::IDLE; }
 };

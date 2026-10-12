@@ -100,7 +100,6 @@ void AudioEngine::on_process(void *userdata) {
         for (c = 0; c < DEFAULT_CHANNELS; c++)
             *dst++ = val;
     }
-
     s_instance->state_.samples_remaining.store(remaining, std::memory_order_relaxed);
 
     buf->datas[0].chunk->offset = 0;
@@ -110,3 +109,53 @@ void AudioEngine::on_process(void *userdata) {
     pw_stream_queue_buffer(s_instance->stream_, b);
 }
 /* [on_process] */
+
+SimpleVoice::SimpleVoice(AudioState &state) : state_(state) {}
+
+void SimpleVoice::prepare(float sample_rate) {
+    attack_step_ = 1.0f / (attack_time_sec_ * sample_rate);
+    release_step_ = 1.0f / (release_time_sec_ * sample_rate);
+}
+
+void SimpleVoice::trigger_note(uint32_t sustain_duration_samples) {
+    state_.samples_remaining.store(sustain_duration_samples, std::memory_order_relaxed);
+    env_state_ = ENVELOPE::ATTACK;
+}
+
+float SimpleVoice::process_sample(float raw_oscillator_sample) {
+    uint32_t samples_remaining = state_.samples_remaining.load(std::memory_order_relaxed);
+    float current_gain = state_.vol.load(std::memory_order_relaxed);
+
+    switch (env_state_) {
+    case ENVELOPE::ATTACK:
+        state_.is_muted.store(false, std::memory_order_relaxed);
+        state_.vol.store(current_gain + attack_step_, std::memory_order_relaxed);
+        if (current_gain + attack_step_ >= 1.0f) {
+            state_.vol.store(1.0f, std::memory_order_relaxed);
+            env_state_ = ENVELOPE::SUSTAIN;
+        }
+        break;
+
+    case ENVELOPE::SUSTAIN:
+        if (samples_remaining > 0) {
+            --samples_remaining;
+        } else {
+            env_state_ = ENVELOPE::RELEASE;
+        }
+        break;
+
+    case ENVELOPE::RELEASE:
+        current_gain -= release_step_;
+        if (current_gain <= 0.0f) {
+            state_.vol.store(0.0f, std::memory_order_relaxed);
+            env_state_ = ENVELOPE::IDLE;
+        }
+        break;
+
+    case ENVELOPE::IDLE:
+        state_.is_muted.store(true, std::memory_order_relaxed);
+        break;
+    }
+
+    return raw_oscillator_sample * current_gain;
+}

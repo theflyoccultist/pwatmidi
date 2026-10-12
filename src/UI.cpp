@@ -5,7 +5,6 @@
 #include <ncurses.h>
 #include <vector>
 #include "Scale.hpp"
-#include "Envelope.hpp"
 
 UI::UI(AudioState &state) : state_(state) {
     initscr();            /* initialize the curses library */
@@ -24,8 +23,7 @@ void UI::run() {
     int target_octave = 5;
 
     SCALE scale = SCALE::MAJOR;
-    ENVELOPE env = ENVELOPE::ATTACK;
-    std::vector<size_t> current_scale = scl::scales.at(scale);
+    std::vector<int> current_scale = scl::scales.at(scale);
     size_t num_of_notes_in_octave = current_scale.size();
 
     size_t key = 0;
@@ -59,7 +57,7 @@ void UI::run() {
 
         case KEY_F(7): {
             // Transpose -1 semitone
-            std::ranges::for_each(current_scale, [](size_t &s) {
+            std::ranges::for_each(current_scale, [](int &s) {
                 s--;
                 if (s == -1) {
                     s += 12;
@@ -70,7 +68,7 @@ void UI::run() {
 
         case KEY_F(8): {
             // Transpose +1 semitone
-            std::ranges::for_each(current_scale, [](size_t &s) {
+            std::ranges::for_each(current_scale, [](int &s) {
                 s++;
                 s = s % 12;
             });
@@ -135,6 +133,7 @@ void UI::run() {
         mvprintw(3, 2, "Volume:    [%.2f]", state_.vol.load());
         mvprintw(4, 2, "Frequency: [%.1f Hz]", state_.freq.load());
         mvprintw(5, 2, "Muted:     [%s]", state_.is_muted.load() ? "YES" : "NO");
+        // mvprintw(6, 2, "State: [%s]", display_envelope(voice_.env_state_));
         mvprintw(7, 2,
                  "Controls: Up/Down (Vol), Left/Right (-/+ Octave), F3 (Mute), "
                  "F5/F6 (-/+ Switch Scale), F7/F8 (Transpose -/+ 1 Semitone), F12 (Quit)");
