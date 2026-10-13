@@ -39,14 +39,16 @@ AudioEngine::~AudioEngine() {
         pw_main_loop_destroy(loop_);
 }
 
-AudioEngine *AudioEngine::s_instance = nullptr;
-
 /* [on_process] */
 void AudioEngine::on_process(void *userdata) {
-    s_instance = static_cast<AudioEngine *>(userdata);
+    auto *s_instance = static_cast<AudioEngine *>(userdata);
     if (!s_instance)
         return;
 
+    s_instance->process_audio();
+}
+
+void AudioEngine::process_audio() {
     struct pw_buffer *b{};
     struct spa_buffer *buf{};
     int c{};
@@ -54,7 +56,7 @@ void AudioEngine::on_process(void *userdata) {
     int32_t stride{};
     int16_t *dst{}, val{};
 
-    b = pw_stream_dequeue_buffer(s_instance->stream_);
+    b = pw_stream_dequeue_buffer(stream_);
     if (b == nullptr) {
         pw_log_warn("out of buffers: %m");
         return;
@@ -70,22 +72,22 @@ void AudioEngine::on_process(void *userdata) {
     if (b->requested)
         n_frames = SPA_MIN(b->requested, n_frames);
 
-    bool muted = s_instance->state_.is_muted.load(std::memory_order_relaxed);
-    float raw_vol = s_instance->state_.vol.load(std::memory_order_relaxed);
-    float freq = s_instance->state_.freq.load(std::memory_order_relaxed);
-    uint32_t remaining = s_instance->state_.samples_remaining.load(std::memory_order_relaxed);
+    bool muted = state_.is_muted.load(std::memory_order_relaxed);
+    float raw_vol = state_.vol.load(std::memory_order_relaxed);
+    float freq = state_.freq.load(std::memory_order_relaxed);
+    uint32_t remaining = state_.samples_remaining.load(std::memory_order_relaxed);
 
     float vol = muted ? 0.0f : raw_vol;
     const float scale = 32767.0;
 
     for (uint32_t i = 0; i < n_frames; i++) {
-        s_instance->accumulator_ += M_PI_M2 * freq / DEFAULT_RATE;
-        if (s_instance->accumulator_ >= M_PI_M2)
-            s_instance->accumulator_ -= M_PI_M2;
+        accumulator_ += M_PI_M2 * freq / DEFAULT_RATE;
+        if (accumulator_ >= M_PI_M2)
+            accumulator_ -= M_PI_M2;
 
         --remaining;
         if (remaining == 0) {
-            s_instance->state_.is_muted.store(true, std::memory_order_relaxed);
+            state_.is_muted.store(true, std::memory_order_relaxed);
             muted = true;
         }
 
@@ -95,67 +97,17 @@ void AudioEngine::on_process(void *userdata) {
          * Another common method to convert a double to
          * 16 bits is to multiple by 32768.0 and then clamp to
          * [-32768 32767] to get the full 16 bits range. */
-        val = static_cast<int16_t>(sin(s_instance->accumulator_) * vol * scale);
+        val = static_cast<int16_t>(sin(accumulator_) * vol * scale);
 
         for (c = 0; c < DEFAULT_CHANNELS; c++)
             *dst++ = val;
     }
-    s_instance->state_.samples_remaining.store(remaining, std::memory_order_relaxed);
+    state_.samples_remaining.store(remaining, std::memory_order_relaxed);
 
     buf->datas[0].chunk->offset = 0;
     buf->datas[0].chunk->stride = stride;
     buf->datas[0].chunk->size = n_frames * stride;
 
-    pw_stream_queue_buffer(s_instance->stream_, b);
+    pw_stream_queue_buffer(stream_, b);
 }
 /* [on_process] */
-
-SimpleVoice::SimpleVoice(AudioState &state) : state_(state) {}
-
-void SimpleVoice::prepare(float sample_rate) {
-    attack_step_ = 1.0f / (attack_time_sec_ * sample_rate);
-    release_step_ = 1.0f / (release_time_sec_ * sample_rate);
-}
-
-void SimpleVoice::trigger_note(uint32_t sustain_duration_samples) {
-    state_.samples_remaining.store(sustain_duration_samples, std::memory_order_relaxed);
-    env_state_ = ENVELOPE::ATTACK;
-}
-
-float SimpleVoice::process_sample(float raw_oscillator_sample) {
-    uint32_t samples_remaining = state_.samples_remaining.load(std::memory_order_relaxed);
-    float current_gain = state_.vol.load(std::memory_order_relaxed);
-
-    switch (env_state_) {
-    case ENVELOPE::ATTACK:
-        state_.is_muted.store(false, std::memory_order_relaxed);
-        state_.vol.store(current_gain + attack_step_, std::memory_order_relaxed);
-        if (current_gain + attack_step_ >= 1.0f) {
-            state_.vol.store(1.0f, std::memory_order_relaxed);
-            env_state_ = ENVELOPE::SUSTAIN;
-        }
-        break;
-
-    case ENVELOPE::SUSTAIN:
-        if (samples_remaining > 0) {
-            --samples_remaining;
-        } else {
-            env_state_ = ENVELOPE::RELEASE;
-        }
-        break;
-
-    case ENVELOPE::RELEASE:
-        current_gain -= release_step_;
-        if (current_gain <= 0.0f) {
-            state_.vol.store(0.0f, std::memory_order_relaxed);
-            env_state_ = ENVELOPE::IDLE;
-        }
-        break;
-
-    case ENVELOPE::IDLE:
-        state_.is_muted.store(true, std::memory_order_relaxed);
-        break;
-    }
-
-    return raw_oscillator_sample * current_gain;
-}
